@@ -1,0 +1,20 @@
+#!/usr/bin/env bash
+set -euo pipefail
+project_dir="$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")/.." && pwd)"
+mode="${1:-help}"
+if [[ $# -gt 0 ]]; then shift; fi
+case "$mode" in
+  spring) module="spring-agent" ;;
+  koog) module="koog-agent" ;;
+  rehearsal) module="incident-lab" ;;
+  *)
+    echo "Usage: scripts/demo spring|koog [FALSE_LEAD|DIAGNOSTIC_UNAVAILABLE] [question]"
+    echo "       scripts/demo rehearsal [false-lead|unavailable|approval|budget]"
+    exit 0 ;;
+esac
+launcher="$project_dir/$module/build/install/$module/bin/$module"
+if [[ ! -x "$launcher" ]]; then
+  echo "Build the launchers first: ./gradlew installDist" >&2
+  exit 1
+fi
+exec "$launcher" "$@"

@@ -1,0 +1,10 @@
+.gradle/
+.kotlin/
+**/build/
+.idea/
+.env
+.env.*
+!.env.example
+*.log
+captures/
+.DS_Store
