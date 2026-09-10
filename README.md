@@ -1,6 +1,25 @@
 # Sherlock: в 14:37 всё упало
 
-Демо для парного доклада о Spring AI 2.0 и Koog. Общий синтетический инцидент, два агента и локальная модель Ollama.
+Демо для парного доклада о Spring AI 2.0 и Koog. Два агента, локальная модель Ollama и реальный Docker-стенд с подтверждением рестарта человеком. Синтетические сценарии сохранены для репетиций.
+
+## Реальный Docker-стенд — без MCP
+
+[Сценарий, инструменты и запуск живого демо](docs/live-demo.md).
+
+```bash
+./gradlew test installDist
+./scripts/lab up
+# Дождаться успешных заказов; Grafana: http://localhost:13000/d/sherlock-live
+./scripts/lab fault close-pool
+./scripts/demo spring LIVE
+# Или на отдельном прогоне: ./scripts/demo koog LIVE
+```
+
+Вызов `restartService` останавливается на консольном подтверждении. Только точный `approve <request-id>` разрешает реальный рестарт. Затем агент получает результат и проверяет восстановление. Enter/EOF/таймаут отклоняют действие.
+
+- `demo-services` — checkout/payment, настоящие HTTP-вызовы, PostgreSQL и Hikari; fault закрывает реальный пул.
+- `live-lab` — общие инструменты Docker CLI/HTTP/JDBC, лимиты и human-in-the-loop.
+- `compose.yaml` — сервисы, нагрузка, Prometheus и Grafana.
 
 ## Подготовка
 
@@ -10,7 +29,7 @@
 - `incident-lab` — общий Java-стенд: метрики, логи, зависимости, deployment, диагностика, согласование симулированного рестарта.
 - `spring-agent` — Java / Spring AI 2.0.1.
 - `koog-agent` — Kotlin / Koog 1.2.0.
-- Данные — фиксированный снимок на 14:42. Новый процесс создаёт чистое состояние; Docker и реальная БД не нужны.
+- В синтетическом режиме данные — фиксированный снимок на 14:42. Новый процесс создаёт чистое состояние; Docker и реальная БД не нужны.
 
 ## Требования
 
@@ -51,7 +70,7 @@ MAX_TOOL_CALLS=4 ./gradlew --console=plain :incident-lab:run --args=budget
 
 В режиме approval консоль покажет ID запроса. Введите `approve <ID>` для симуляции; Enter или EOF отклоняет запрос. Решение одноразовое и привязано к сервису и окружению. Метрики после рестарта payment остаются плохими: причина находится в БД.
 
-## Живые агенты
+## Агенты на синтетическом инциденте
 
 ```bash
 ./gradlew --console=plain :spring-agent:run

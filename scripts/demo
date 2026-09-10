@@ -6,10 +6,12 @@ if [[ $# -gt 0 ]]; then shift; fi
 case "$mode" in
   spring) module="spring-agent" ;;
   koog) module="koog-agent" ;;
+  live) module="live-lab" ;;
   rehearsal) module="incident-lab" ;;
   *)
-    echo "Usage: scripts/demo spring|koog [FALSE_LEAD|DIAGNOSTIC_UNAVAILABLE] [question]"
+    echo "Usage: scripts/demo spring|koog [LIVE|FALSE_LEAD|DIAGNOSTIC_UNAVAILABLE] [question]"
     echo "       scripts/demo rehearsal [false-lead|unavailable|approval|budget]"
+    echo "       scripts/demo live [status|metrics|logs|database|restart] [service]"
     exit 0 ;;
 esac
 launcher="$project_dir/$module/build/install/$module/bin/$module"
@@ -17,4 +19,5 @@ if [[ ! -x "$launcher" ]]; then
   echo "Build the launchers first: ./gradlew installDist" >&2
   exit 1
 fi
+export SHERLOCK_PROJECT_DIR="$project_dir"
 exec "$launcher" "$@"

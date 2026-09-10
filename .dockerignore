@@ -1,0 +1,7 @@
+**
+!docker/
+!docker/Dockerfile
+!demo-services/
+!demo-services/build/
+!demo-services/build/libs/
+!demo-services/build/libs/demo-services.jar

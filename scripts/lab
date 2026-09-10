@@ -1,0 +1,41 @@
+#!/usr/bin/env bash
+set -euo pipefail
+ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
+cd "$ROOT"
+compose() { docker compose --project-name sherlock-live --file "$ROOT/compose.yaml" "$@"; }
+case "${1:-help}" in
+  up)
+    ./gradlew :demo-services:bootJar --console=plain
+    # Direct build also works around Compose Bake session headers on non-ASCII paths.
+    docker build --tag sherlock-live-demo:0.1.0 --file docker/Dockerfile "$ROOT"
+    compose up --no-build --detach
+    echo 'Checkout: http://localhost:18081/demo/status'
+    echo 'Payment: http://localhost:18082/demo/status'
+    echo 'Grafana: http://localhost:13000/d/sherlock-live'
+    ;;
+  status)
+    compose ps
+    for port in 18081 18082; do
+      curl --fail --silent --show-error --max-time 5 "http://127.0.0.1:$port/demo/status" || true
+      echo
+    done
+    ;;
+  fault)
+    if [[ "${2:-}" != close-pool ]]; then echo 'Usage: scripts/lab fault close-pool' >&2; exit 2; fi
+    curl --fail --silent --show-error --max-time 5 --request POST http://127.0.0.1:18082/demo/faults/close-pool
+    echo
+    ;;
+  reset)
+    # Manual operator reset. Agent-triggered restart uses the separate approval boundary.
+    compose restart payment checkout
+    ;;
+  down)
+    # Keep PostgreSQL volume; never target another Compose project.
+    compose down
+    ;;
+  *)
+    echo 'Usage: scripts/lab {up|status|fault close-pool|reset|down}'
+    echo 'down preserves PostgreSQL data; reset is a manual operator action.'
+    [[ "${1:-help}" == help ]]
+    ;;
+esac

@@ -1,0 +1,73 @@
+name: sherlock-live
+services:
+  checkout:
+    image: sherlock-live-demo:0.1.0
+    build:
+      context: .
+      dockerfile: docker/Dockerfile
+    environment:
+      DEMO_ROLE: checkout
+      DEMO_PAYMENT_URL: http://payment:8080
+    ports: ["127.0.0.1:18081:8080"]
+    depends_on:
+      payment:
+        condition: service_started
+    mem_limit: 512m
+    restart: unless-stopped
+  payment:
+    image: sherlock-live-demo:0.1.0
+    build:
+      context: .
+      dockerfile: docker/Dockerfile
+    environment:
+      DEMO_ROLE: payment
+      DEMO_JDBC_URL: jdbc:postgresql://payments-db:5432/sherlock?connectTimeout=2&socketTimeout=5&ApplicationName=payment
+      DEMO_DB_USER: sherlock
+      DEMO_DB_PASSWORD: sherlock-demo
+    ports: ["127.0.0.1:18082:8080"]
+    depends_on:
+      payments-db:
+        condition: service_healthy
+    mem_limit: 512m
+    restart: unless-stopped
+  payments-db:
+    image: postgres:17.6-alpine
+    environment:
+      POSTGRES_DB: sherlock
+      POSTGRES_USER: sherlock
+      POSTGRES_PASSWORD: sherlock-demo
+    ports: ["127.0.0.1:15432:5432"]
+    volumes: ["payments-data:/var/lib/postgresql/data"]
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U sherlock -d sherlock"]
+      interval: 3s
+      timeout: 2s
+      retries: 20
+    restart: unless-stopped
+  load:
+    image: curlimages/curl:8.16.0
+    entrypoint: ["/bin/sh", "/load.sh"]
+    volumes: ["./docker/load.sh:/load.sh:ro"]
+    depends_on: [checkout]
+    restart: unless-stopped
+  prometheus:
+    image: prom/prometheus:v3.5.0
+    ports: ["127.0.0.1:19090:9090"]
+    volumes: ["./docker/prometheus/prometheus.yml:/etc/prometheus/prometheus.yml:ro"]
+    command: ["--config.file=/etc/prometheus/prometheus.yml", "--storage.tsdb.retention.time=6h"]
+    restart: unless-stopped
+  grafana:
+    image: grafana/grafana:12.1.1
+    ports: ["127.0.0.1:13000:3000"]
+    environment:
+      GF_AUTH_ANONYMOUS_ENABLED: "true"
+      GF_AUTH_ANONYMOUS_ORG_ROLE: Viewer
+      GF_AUTH_DISABLE_LOGIN_FORM: "true"
+      GF_SECURITY_ADMIN_PASSWORD: sherlock-demo
+    volumes:
+      - ./docker/grafana/provisioning:/etc/grafana/provisioning:ro
+      - ./docker/grafana/dashboards:/var/lib/grafana/dashboards:ro
+    depends_on: [prometheus]
+    restart: unless-stopped
+volumes:
+  payments-data:
