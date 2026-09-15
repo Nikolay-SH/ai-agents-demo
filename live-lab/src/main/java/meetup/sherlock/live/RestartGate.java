@@ -6,7 +6,9 @@ import java.util.UUID;
 
 public final class RestartGate {
     public record Target(String service, String id, String startedAt, String project) {}
-    public record Request(String id, Target target, String reason) {}
+    public record Request(String id, Target target, String reason, String action) {
+        public Request(String id, Target target, String reason) { this(id, target, reason, "REAL DOCKER RESTART"); }
+    }
     public enum Decision { APPROVE, REJECT, TIMEOUT }
     public interface Backend {
         Target inspect(String service);

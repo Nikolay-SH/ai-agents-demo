@@ -17,8 +17,8 @@ public final class ConsoleApproval implements RestartGate.Approval, AutoCloseabl
     }
     public synchronized RestartGate.Decision ask(RestartGate.Request request) {
         if (disabled) return RestartGate.Decision.REJECT;
-        output.printf("%n=== HUMAN APPROVAL REQUIRED — REAL DOCKER RESTART ===%nProject: %s%nService: %s%nContainer: %s%nReason: %s%n",
-            request.target().project(), request.target().service(), request.target().id(), request.reason());
+        output.printf("%n=== HUMAN APPROVAL REQUIRED — %s ===%nProject: %s%nService: %s%nTarget: %s%nReason: %s%n",
+            request.action(), request.target().project(), request.target().service(), request.target().id(), request.reason());
         output.println("Type exactly: approve " + request.id());
         output.println("Enter / any other response / EOF rejects. Timeout: " + timeout.toSeconds() + " seconds.");
         output.flush();
@@ -35,6 +35,23 @@ public final class ConsoleApproval implements RestartGate.Approval, AutoCloseabl
         } catch (ExecutionException e) {
             disabled = true;
             return RestartGate.Decision.REJECT;
+        }
+    }
+    /** Operator's next chat turn. Shares the reader with approvals, so buffered input is never split between two readers. */
+    public synchronized String readLine(String prompt) {
+        if (disabled) return null;
+        output.print(prompt);
+        output.flush();
+        try {
+            String line = reader.submit(input::readLine).get();
+            if (line == null) disabled = true;
+            return line;
+        } catch (ExecutionException e) {
+            disabled = true;
+            return null;
+        } catch (InterruptedException e) {
+            Thread.currentThread().interrupt();
+            return null;
         }
     }
     public void close() { reader.shutdownNow(); }

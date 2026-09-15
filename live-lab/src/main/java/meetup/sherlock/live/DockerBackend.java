@@ -37,14 +37,21 @@ public final class DockerBackend implements RestartGate.Backend {
     }
     public String state(String service) {
         var target = inspect(service);
-        String state = run(List.of("docker", "inspect", "--format", "{{json .State}}", target.id()), Duration.ofSeconds(10));
-        return gson.toJson(target) + "\nDocker state: " + state;
+        return gson.toJson(target) + "\nDocker state: " + gson.toJson(dockerState(target));
     }
-    public String logs(String service, String query) {
+    public JsonObject dockerState(String service) { return dockerState(inspect(service)); }
+    private JsonObject dockerState(RestartGate.Target target) {
+        return JsonParser.parseString(run(List.of("docker", "inspect", "--format", "{{json .State}}", target.id()), Duration.ofSeconds(10))).getAsJsonObject();
+    }
+    /** Matching lines from the last 120 lines / 5 minutes, oldest first, with Docker timestamps. */
+    public List<String> logLines(String service, String query) {
         var target = inspect(service);
         String output = run(List.of("docker", "logs", "--since", "5m", "--tail", "120", "--timestamps", target.id()), Duration.ofSeconds(10));
         String search = query == null ? "" : query.toLowerCase(Locale.ROOT);
-        var matches = output.lines().filter(line -> line.toLowerCase(Locale.ROOT).contains(search)).toList();
+        return output.lines().filter(line -> line.toLowerCase(Locale.ROOT).contains(search)).toList();
+    }
+    public String logs(String service, String query) {
+        var matches = logLines(service, query);
         if (matches.isEmpty()) return "NO_MATCHES in the last 120 log lines / 5 minutes";
         String excerpt = String.join("\n", matches.subList(Math.max(0, matches.size() - 20), matches.size()));
         return "Latest " + Math.min(20, matches.size()) + " matching lines (searched last 120 lines / 5 minutes):\n"

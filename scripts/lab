@@ -21,12 +21,22 @@ case "${1:-help}" in
     done
     ;;
   fault)
-    if [[ "${2:-}" != close-pool ]]; then echo 'Usage: scripts/lab fault close-pool' >&2; exit 2; fi
-    curl --fail --silent --show-error --max-time 5 --request POST http://127.0.0.1:18082/demo/faults/close-pool
-    echo
+    case "${2:-}" in
+      close-pool)
+        curl --fail --silent --show-error --max-time 5 --request POST http://127.0.0.1:18082/demo/faults/close-pool
+        echo ;;
+      lock)
+        # Reporting job takes a consistent snapshot: SHARE lock blocks INSERT, allows SELECT. Released after 15 min or by reset.
+        compose exec -d -T -e PGAPPNAME=reporting-job payments-db sh -c \
+          '(echo "BEGIN; LOCK TABLE payments IN SHARE MODE;"; sleep 900) | psql -U sherlock -d sherlock'
+        echo 'reporting-job holds SHARE lock on table payments (idle in transaction)' ;;
+      *) echo 'Usage: scripts/lab fault close-pool|lock' >&2; exit 2 ;;
+    esac
     ;;
   reset)
-    # Manual operator reset. Agent-triggered restart uses the separate approval boundary.
+    # Manual operator reset. Agent-triggered actions use the separate approval boundary.
+    # Ending `sleep` closes psql stdin: the reporting-job transaction rolls back and releases the lock.
+    compose exec -T payments-db sh -c "pkill -f 'sleep 900' || true"
     compose restart payment checkout
     ;;
   down)
@@ -34,7 +44,7 @@ case "${1:-help}" in
     compose down
     ;;
   *)
-    echo 'Usage: scripts/lab {up|status|fault close-pool|reset|down}'
+    echo 'Usage: scripts/lab {up|status|fault close-pool|fault lock|reset|down}'
     echo 'down preserves PostgreSQL data; reset is a manual operator action.'
     [[ "${1:-help}" == help ]]
     ;;

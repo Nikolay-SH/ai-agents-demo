@@ -17,10 +17,11 @@ import kotlinx.coroutines.runBlocking
 
 fun main(args: Array<String>) {
     if (args.firstOrNull()?.equals("LIVE", ignoreCase = true) == true) { runLive(args); return }
+    if (args.firstOrNull()?.matches(Regex("(?i)step[0-5]")) == true) { runLadder(args[0].lowercase(), args.getOrNull(1) ?: meetup.sherlock.live.Ladder.QUESTION); return }
     val lab = DemoSupport.lab(DemoSupport.scenario(args))
     val modelName = System.getenv("OLLAMA_MODEL") ?: "qwen3:8b"
     val baseUrl = System.getenv("OLLAMA_BASE_URL") ?: "http://localhost:11434"
-    println("LIVE Koog 1.2.0 | Ollama $modelName | synthetic incident")
+    println("Koog 1.2.0 | Ollama $modelName | synthetic incident")
     DemoSupport.runBounded({
         EvidenceReview.investigate({ request ->
             runBlocking {

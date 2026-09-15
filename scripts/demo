@@ -10,8 +10,9 @@ case "$mode" in
   rehearsal) module="incident-lab" ;;
   *)
     echo "Usage: scripts/demo spring|koog [LIVE|FALSE_LEAD|DIAGNOSTIC_UNAVAILABLE] [question]"
+    echo "       scripts/demo spring|koog step0|step1|step2|step3|step4|step5 [question]   # лестница, docs/ladder.md"
     echo "       scripts/demo rehearsal [false-lead|unavailable|approval|budget]"
-    echo "       scripts/demo live [status|metrics|logs|database|restart] [service]"
+    echo "       scripts/demo live [status|metrics|logs|database|restart] [service] | terminate <pid>   # COMPACT=true — компактные ответы"
     exit 0 ;;
 esac
 launcher="$project_dir/$module/build/install/$module/bin/$module"
