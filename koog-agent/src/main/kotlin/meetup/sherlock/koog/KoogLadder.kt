@@ -42,6 +42,11 @@ private val params = OllamaParams(temperature = 0.0, think = false, maxTokens = 
 private fun config(maxIterations: Int) = AIAgentConfig(prompt = prompt("sherlock", params = params) { system(Ladder.SYSTEM) },
     model = model, maxAgentIterations = maxIterations)
 
+fun main(args: Array<String>) {
+    require(args.isNotEmpty() && args[0].matches(Regex("(?i)step[0-5]"))) { "Usage: step0..step5 [question]" }
+    runLadder(args[0].lowercase(), args.getOrNull(1) ?: Ladder.QUESTION)
+}
+
 fun runLadder(step: String, question: String) {
     println("Koog 1.2.0 | Ollama $modelName | $step")
     val executor = MultiLLMPromptExecutor(NoThinkOllama(OllamaClient(baseUrl = System.getenv("OLLAMA_BASE_URL") ?: "http://localhost:11434",

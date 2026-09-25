@@ -14,6 +14,10 @@ import org.springframework.ai.chat.model.ChatModel;
 import org.springframework.ai.chat.model.ChatResponse;
 import org.springframework.ai.chat.prompt.Prompt;
 import org.springframework.ai.model.tool.ToolCallingManager;
+import org.springframework.ai.ollama.OllamaChatModel;
+import org.springframework.ai.ollama.api.OllamaApi;
+import org.springframework.ai.ollama.api.OllamaChatOptions;
+import org.springframework.ai.tool.ToolCallback;
 import org.springframework.ai.support.ToolCallbacks;
 import java.util.*;
 import java.util.function.Function;
@@ -23,9 +27,24 @@ import java.util.stream.Collectors;
 public final class SpringLadder {
     static final String QUESTION = Ladder.QUESTION;
     static final String SYSTEM = Ladder.SYSTEM;
+    static final String MODEL = System.getenv().getOrDefault("OLLAMA_MODEL", "qwen3:8b");
+
+    public static void main(String[] args) {
+        if (args.length == 0 || !args[0].matches("(?i)step[0-5]")) throw new IllegalArgumentException("Usage: step0..step5 [question]");
+        var chatModel = OllamaChatModel.builder()
+            .ollamaApi(OllamaApi.builder().baseUrl(System.getenv().getOrDefault("OLLAMA_BASE_URL", "http://localhost:11434")).build())
+            .options(options())
+            .build();
+        run(args[0].toLowerCase(Locale.ROOT), chatModel, args.length > 1 ? args[1] : QUESTION);
+    }
+    /** Same settings for every step: temperature 0, 16k context, 2048 tokens per answer, no thinking. */
+    static OllamaChatOptions options(ToolCallback... tools) {
+        return (OllamaChatOptions) OllamaChatOptions.builder().model(MODEL).temperature(0.0).numCtx(16384).numPredict(2048)
+            .toolCallbacks(tools).disableThinking().build();
+    }
 
     static void run(String step, ChatModel model, String question) {
-        System.out.println("Spring AI 2.0.1 | Ollama " + SpringSherlock.MODEL + " | " + step);
+        System.out.println("Spring AI 2.0.1 | Ollama " + MODEL + " | " + step);
         if (step.equals("step0")) { System.out.println(step0(model, question)); return; }
         // Шаги 1–2 — сырые ответы tools, с шага 3 — компактные. В диалоге (2–5) время всех реплик суммируется.
         try (var lab = new LiveSession(!step.equals("step1") && !step.equals("step2"), step.equals("step1") ? 180 : 300)) {
@@ -46,7 +65,7 @@ public final class SpringLadder {
 
     /** Шаг 1. Tools и цикл вручную: агент — это цикл, история — список сообщений, лимит — условие цикла. */
     static String step1(ChatModel model, LiveSession lab, String question) {
-        var options = SpringSherlock.options(ToolCallbacks.from(new SpringReadTools(lab)));
+        var options = options(ToolCallbacks.from(new SpringReadTools(lab)));
         var tools = ToolCallingManager.builder().build();
         var prompt = new Prompt(List.of(new SystemMessage(SYSTEM), new UserMessage(question)), options);
         for (int call = 1; call <= 12; call++) {
